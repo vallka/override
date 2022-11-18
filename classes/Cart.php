@@ -1,28 +1,4 @@
 <?php
-/**
- * Copyright since 2007 PrestaShop SA and Contributors
- * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
- *
- * NOTICE OF LICENSE
- *
- * This source file is subject to the Open Software License (OSL 3.0)
- * that is bundled with this package in the file LICENSE.md.
- * It is also available through the world-wide-web at this URL:
- * https://opensource.org/licenses/OSL-3.0
- * If you did not receive a copy of the license and are unable to
- * obtain it through the world-wide-web, please send an email
- * to license@prestashop.com so we can send you a copy immediately.
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade PrestaShop to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to https://devdocs.prestashop.com/ for more information.
- *
- * @author    PrestaShop SA and Contributors <contact@prestashop.com>
- * @copyright Since 2007 PrestaShop SA and Contributors
- * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
- */
 class Cart extends CartCore
 {
     /**
@@ -51,13 +27,68 @@ class Cart extends CartCore
                 ) {
                     return false;
                 } else {
-                    return parent::addCartRule($id_cart_rule, $useOrderPrices);
+                    //return parent::addCartRule($id_cart_rule, $useOrderPrices);
+                    return $this->addCartRule_quantitydiscountpro($id_cart_rule, $useOrderPrices);
                 }
             } else {
-                return parent::addCartRule($id_cart_rule, $useOrderPrices);
+                //return parent::addCartRule($id_cart_rule, $useOrderPrices);
+                return $this->addCartRule_quantitydiscountpro($id_cart_rule, $useOrderPrices);
             }
         } else {
-            return parent::addCartRule($id_cart_rule, $useOrderPrices);
+            //return parent::addCartRule($id_cart_rule, $useOrderPrices);
+            return $this->addCartRule_quantitydiscountpro($id_cart_rule, $useOrderPrices);
         }
+    }
+
+    /*
+    * module: quantitydiscountpro
+    * date: 2021-04-04 22:05:51
+    * version: 2.1.36
+    */
+    public function addCartRule_quantitydiscountpro($id_cart_rule, bool $useOrderPrices = false)
+    {
+        $result = parent::addCartRule($id_cart_rule, $useOrderPrices);
+        if (Module::isEnabled('quantitydiscountpro')) {
+            include_once(_PS_MODULE_DIR_.'quantitydiscountpro/quantitydiscountpro.php');
+            $quantityDiscountRulesAtCart = QuantityDiscountRule::getQuantityDiscountRulesAtCart((int)Context::getContext()->cart->id);
+            if (is_array($quantityDiscountRulesAtCart) && count($quantityDiscountRulesAtCart)) {
+                foreach ($quantityDiscountRulesAtCart as $quantityDiscountRuleAtCart) {
+                    $quantityDiscountRuleAtCartObj = new QuantityDiscountRule((int)$quantityDiscountRuleAtCart['id_quantity_discount_rule']);
+                    if (!$quantityDiscountRuleAtCartObj->compatibleCartRules()) {
+                        QuantityDiscountRule::removeQuantityDiscountCartRule($quantityDiscountRuleAtCart['id_cart_rule'], (int)Context::getContext()->cart->id);
+                    }
+                }
+            }
+        }
+        return $result;
+    }
+    /*
+    * module: quantitydiscountpro
+    * date: 2021-04-04 22:05:51
+    * version: 2.1.36
+    */
+    public function getCartRules($filter = CartRule::FILTER_ACTION_ALL, $autoAdd = true, $useOrderPrices = false)
+    {
+        $cartRules = parent::getCartRules($filter, $autoAdd, $useOrderPrices);
+        if (Module::isEnabled('quantitydiscountpro')) {
+            include_once(_PS_MODULE_DIR_.'quantitydiscountpro/quantitydiscountpro.php');
+            foreach ($cartRules as &$cartRule) {
+                if (QuantityDiscountRule::isQuantityDiscountRule($cartRule['id_cart_rule'])
+                    && !QuantityDiscountRule::isQuantityDiscountRuleWithCode($cartRule['id_cart_rule'])) {
+                    $cartRule['code'] = '';
+                }
+            }
+            unset($cartRule);
+        }
+        return $cartRules;
+    }
+    /*
+    * module: klarnaofficial
+    * date: 2021-10-21 16:56:48
+    * version: 2.2.14-v-1
+    */
+    public function getDeliveryOption($default_country = null, $dontAutoSelectOptions = false, $use_cache = false)
+    {
+        return parent::getDeliveryOption($default_country, $dontAutoSelectOptions, $use_cache);
     }
 }
